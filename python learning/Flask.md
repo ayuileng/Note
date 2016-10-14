@@ -83,6 +83,11 @@
 * 可以用模板继承机制少写很多重复的代码，比如自定义404和500页面时，可以继承base页面等。
 * url_for()辅助函数：以视图函数名作为参数,第二个参数`_external=True`表示绝对地址。生成动态地址时可以将动态部分作为关键字参数传入:`url_for('user', name='john', _external=True) `。
 * static路由：对静态文件的引用被当做静态路由，即`/static/<lename>`，默认情况下会在static文件夹下查找静态文件：`url_for('static', filename='css/styles.css', _external=True)`。
-* 
-
+* 使用Flask-WTF来处理web表单：每个web表单都是继承于Form类，这个类定义了表单中的各种字段，每个字段后面可以加上验证函数，字段对象的构造函数的第一个参数是渲染成HTML时标号：
+```python
+    class NameForm(Form):
+        name = StringField('What is your name?', validators=[Required()])
+        submit = SubmitField('Submit')
+```
+* 表单在模板中调用后就会渲染成相应的HTML，
 
