@@ -119,4 +119,58 @@
 * 列表推导式：`[x*x for x in range(10) if x%3 == 0]`
 * 位置参数和关键字参数：位置参数就是原本的形式，关键字参数类似于有默认值的形参定义；位置参数必须放在关键字参数之前
 * 可变参数：func(*params)，params会解释为元组；func(**params)，params会被解释为字典
-* 
+```python
+  def story(**kwds):
+      return 'Once upon a time,there was a %(job)s called %(name)s.' % kwds
+
+  def poewr(x, y, *others):
+      if others:
+          print 'Received redundant parameters:', others
+      return pow(x, y)
+
+  def interval(start, stop=None, step=1):
+      'Imitates range() for step > 0'
+      if stop is None:
+          start, stop = 0, start
+      result = []
+      i = start
+      while i < stop:
+          result.append(i)
+          i += step
+      return result
+```
+* 作用域：在python中变量和值对应存在一个键值对关系，用vars()函数能返回。这个字典叫做作用域或者命名空间,除了全局作用域外，每次函数调用都会创建一个新的作用域。函数内的变量处于局部作用域，并不能影响全局作用域(在局部作用域中也能访问全局变量，但是这样容易出现问题)：
+```python
+  x = 1
+  scope = vars()
+  print scope['x']   #1
+
+  def combine(parameter):
+    print parameter+globals()['parameter']
+
+  parameter = 'hehe'
+  combine('sb')   #sbhehe
+
+  x = 1
+  def change_global():
+      global x
+      x += 1
+
+  change_global()
+  print x      #2
+
+```
+* 递归。例：
+```python
+  def search(sequence, number, lower, upper):
+      if lower == upper:
+          assert number == sequence[upper]
+          return upper
+      else:
+          middle = (lower + upper) / 2
+          if number > sequence[middle]:
+              return search(sequence, number, middle + 1, upper)
+          else:
+              return search(sequence, number, lower, middle)
+```
+
