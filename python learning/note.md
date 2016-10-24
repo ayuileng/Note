@@ -173,4 +173,65 @@
           else:
               return search(sequence, number, lower, middle)
 ```
+* 多态与鸭子类型(重要的是方法能否被对象调用，而不是对象本身的类型)。
+* 为了让方法或者属性变得私有，只需要在名字前面加上双下划线。
+* 在类的内部定义中，所有以双下划线开始的名字都被翻译成前面加上单下划线和类名的形式,因此实际上私有方法也能在类的外部访问，但是这种做法不推荐:
+```python
+  class Secretive:
+      def __inaccessible(self):
+          print "U can't see me..."
+      
+      def accessible(self):
+          print "U can see me..."
+          self.__inaccessible()
 
+  s = Secretive()
+  s.accessible()
+  Secretive._Secretive__inaccessible  #<unbound method Secretive.__inaccessible>
+```
+* 惯例中可以使用单下划线作为私有方法或者属性的开头，但是实际上python本身是并不支持完全的私有化的。
+* 如果想要查看一个类是否是另一个类的子类，可以使用内奸的`issubclass`函数；如果想知道已知类的基类们，可以使用`__bases__`属性；还能使用`isinstance`方法检查一个对象是否是另一个类的实例；如果想知道一个对象属于哪个类，可以使用`__class__`属性。
+* python也支持多重继承，但是尽量别用。
+* 在处理多态对象时，只要关心它的接口，也就是公开的方法和属性；如果要查看对象内所有存储的值，可以使用`__dict__`属性。
+* 内省：可以查看对象是否有某一属性，进一步可以检查属性是否可用等
+* python用异常对象来表示异常情况。遇到错误后，会引发异常，如果异常对象未被处理或者捕捉，程序就会用回溯中止执行。
+* 可以用`raise`来手动引发一个异常；自定义异常的话一般世界继承`Exception`类，然后pass就行:
+```python
+  class MuffledCalculator:
+      muffled = False
+      def calc(self,expr):
+          try:
+              return eval(expr)
+          except ZeroDivisionError:
+              if self.muffled:
+                  print 'Division by zero is illegal'
+              else:
+                  raise
+  calc = MuffledCalculator()
+  calc.calc('10/0')   #Exception
+  calc.muffled = True
+  calc.calc('10/0')   #print 'Division by zero is illegal'
+```
+* 如果需要用一个`except`语句捕捉多个异常，可以把异常类型列在元组中。
+* 可以使用空的`except`语句来捕捉所有的异常。
+* 如果异常在函数中引发而并没有被处理，它就会传播至调用者处，一直往上一层浮动。
+* 构造方法：`__init__`，同理还有析构方法，但是尽量别用；当前的类和对象可以作为`super`函数的参数使用，调用函数返回的对象的任何方法都是调用超类的方法，而不是当前类的方法:
+```python
+  class Bird:
+      def __init__(self):
+          self.hungry = True
+      def eat(self):
+          if self.hungry:
+              print "eating"
+              self.hungry = False
+          else:
+              print "no,thanks"
+
+  class SongBird(Bird):
+      def __init__(self):
+          super(SongBird,self).__init__()
+          self.sound = "hahaha"
+      def sing(self):
+          print self.sound
+```
+* 
