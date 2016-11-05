@@ -1,0 +1,8 @@
+<component name="ArtifactManager">
+  <artifact type="jar" name="invertedIndex">
+    <output-path>$PROJECT_DIR$/out/artifacts/invertedIndex</output-path>
+    <root id="archive" name="invertedIndex.jar">
+      <element id="module-output" name="InvertedIndex" />
+    </root>
+  </artifact>
+</component>
