@@ -66,4 +66,87 @@
     1. 用户的应用程序通过客户端将文件名发送到NameNode
     2. NameNode接收到后在HDFS目录中检索对应的数据块，再根据数据块的信息找到保存数据块的DataNode地址，返回给客户端
     3. 客户端收到响应后与DataNode并行的进行数据传输，并将操作结果日志等提交到NameNode
-* 
+* mapreduce并行编程框架基本处理过程：
+    1. 各个map结点对所划分的数据进行并行处理，从不同的输入数据产生相应的中间结果输出
+    2. 各个reduce结点也各自进行并行处理，各自负责处理不同的中间结果的集合
+    3. 在进行reduce之前，必须等到所有的map结点处理完毕，因此在进入reduce结点前有一个同步障，这一阶段也会对map的输出做一点处理
+    4. 汇集所有reduce结点的输出
+* Combiner：将两个主键相同的值直接传给reducer会效率低下，所以Combiner的作用就是在输入到reducer之前会中间结果进行优化
+* Patitioner：为了保证将所有主键相同的键值对传给同一个reduce结点，要对传入reduce结点的中间结果进行处理，消除相关性。Patitioner的过程在map和reduce过程之间
+* 为了实现本地化计算原则，让每个从节点同时作为DataNode和TaskTracker，NameNode和JobTracker的话可以在一起也可以不在一起
+* mapreduce程序执行过程：
+    1. 用户程序客户端通过作业客户端接口程序JobClient提交一个用户程序
+    2. JobClient向JobTracker提交作业执行请求并获得一个JobID
+    3. JobClient同时也将用户程序作业和待处理的数据文件信息准备好并存储在HDFS中
+    4. JobClient正式向JobTracker提交和执行作业
+    5. JobTracker接受并调度改作业，进行作业的初始化准备工作，根据待处理数据的实际分片情况，调度和分配一定的Map结点来完成作业
+    6. JobTracker查询作业中的数据分片信息，构建并准备相应的任务
+    7. JobTracker启动TaskTracker结点开始执行具体任务
+    8. TaskTracker根据分配到的任务，获取相应的作业数据
+    9. TaskTracker结点创建所需要的java虚拟机，并启动相应的map任务或reduce任务
+    10. 若是map任务，则吧中间结果输出到HDFS上，若是reduce任务，则输出结果
+    11. TaskTracker向JobTracker报告任务完成，若Map任务完成后后续还有Reduce任务，则分配和启动Reduce结点处理中间结果并输出最终结果
+* 当一个作业被提交到hadoop系统时，这个作业的输入数据或被划分成很多等长的数据块，每个数据块都对应一个Map任务，这些map任务同时执行，并行的处理数据。Map任务的输出数据会被排序，然后被系统分发给Reduce任务作进一步处理。
+* MapReduce框架下作业和任务的执行流程：
+    * 作业执行流程：
+        1. 作业的运行和生命周期分为：准备阶段，运行阶段和结束阶段
+        2. 准备阶段：初始化，进行读入数据块描述信息，创建所有的map和reduce任务
+        3. 运行阶段：等待任务被调度，当第一个任务开始执行时，开始进入真正的计算，当所有的map和reduce任务完成后，进入等待状态，此时另一个作业清理任务启动，清理作业的运行环境，进入结束阶段
+        4. 结束阶段：作业清理完成后，作业最终达到成功状态，生命周期结束
+    * 任务执行流程：
+        1. 任务是MapReduce框架下并行化计算的基本单位
+        2. 感觉不会考细节
+* 数据输入格式InputFormat(抽象类)：有3个任务：
+    1. 验证数据的输入形式和格式
+    2. 将输入数据分割为若干逻辑意义上的`InputSplit`，每个`InputSplit`作为单独的Mapper输入
+    3. 提供一个`RecordReader`，用于将Mapper的输入处理转化为若干输入记录
+    * 使用方法：`job.setInputFormatClass(KeyValueTextInputFormat.class)`
+    * 常用的是实现类是`FileInputFormat`类：用于从HDFS中读取文件并分块，这些文件可能是文本文件或者顺序文件
+    * `TextInputFormat`：默认输入格式，读取文本文件的行：键：当前行的偏移位置；值：当前行内容；对应的是`LineRecordReader`，读入每一行的数据记录；使用此类时，Mapper的输入应该是`<LongWritable,Text>`
+    * `KeyValueTextInputFormat`：将行解析为键值对；键：行内守鹤制表符前的内容；值：其余内容;对应的是`KeyValueLineRecordReader`，将第一个制表符前的作为键，后面的都是值；Mapper的输入应该是`<Text,Text>`
+* `InputSplit`：将单独的作为一个Mapper的输入，也就是说Mapper的数量==InputSplit的数量；InputSplit的类型根据选择的InputFormat来决定；常用的是`FileSplit`
+* Mapper类：4个方法：`setup(),map(key,value,context),cleanup(context),run(context)`；
+* Combiner类：一个Mapper结点输出的键值对首先需要进行合并处理，以便将key相同的键值对合并为一个，减少网络传输，系统默认提供了一个Combiner，也可以用户自己定制；Combiner实际上就是一个Reducer，所以也是继承于Reducer类，特别注意：Combiner不能改变原来Mapper的输出键值对的类型。
+* Partitioner：为了避免在Reduce计算过程中不同Reduce节点存在数据相关性。因为Reduce处理的数据可能来自不同的Mapper，所以Mapper的中间输出结果需要进行分区处理，保证相关的数据送到一个Reduce上面。Hadoop默认自带了一个`HashPartitioner`,对键值对中的key取hash值并按Reducer的数目取模来分配；也可以用户自己定制。使用方式：`job.setPartitionerClass(MyPartitioner)`
+* Sort：感觉不考
+* Reducer：没啥内容
+* OutputFormat：没啥内容
+* HBase技术特点：列式存储；表数据是系数的多维映射表；读写的严格一致性；读写速度快；线性扩展性；海量存储能力；数据自动分片；失效恢复；javaAPI
+* HBase基本数据结构：行关键字（唯一，字典排序）、列族（相当于一个容器，列族之间独立存放）和列名以及时间戳
+* HBase查询模式：通过三元组[行key，列（列族名：列名），时间戳]来确定一个存储单元；HBase的查询方式：
+    1. 通过单个行key访问
+    2. 通过行key的范围
+    3. 全表遍历
+* HBase不支持事务，跨行的原子性无法实现
+* HBase编程案例：P157
+* K-means算法：
+    1. 定义簇的数据结构
+    ```java
+    public class Cluster implements Writable{
+        private int id;
+        private long numOfPoints;
+        private Instance center;
+    }
+    ```
+    2. 初始化K个中心点：扫描整个数据集，若中心点集未满，则添加当前点，若已满，则按1/(1+K)的概率替换其中一个点
+    3. Mapper中的setup():读入初始簇重心；map()方法：为每个传入的数据点找到离奇最近的簇，并输出<簇的id，该点>
+    ```java
+    public void map(LongWritable key,Text value,Context context) throws Exception{
+        Instance instance = new Instance(value.toString());
+        int id;
+        try{
+            id = getNearest(instance);
+            if (id == -1){
+                throws Exception(-1);
+            }else{
+                Cluster cluster = new Cluster(id,instance);
+                cluster.setNumOfPoints(1);
+                context.write(new IntWritable(1),cluster);
+            }catch{
+                //
+            }
+        }
+    }
+    ```
+    4. Combiner：
+    
